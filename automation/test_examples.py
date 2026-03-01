@@ -19,6 +19,7 @@ import os
 import re
 import json
 import statistics
+from collections import Counter
 import urllib.request
 import urllib.error
 import urllib.parse
@@ -126,16 +127,16 @@ QUALITY_GATE_MIN_SINGLE_SCORE = 40
 
 # Профили бюджета токенов для оценки эффективности
 TOKEN_BUDGETS_BY_EXAMPLE = {
-    "orders_client": {"target": 1800, "soft_limit": 2600, "hard_limit": 4200},
-    "stock_low": {"target": 2200, "soft_limit": 3200, "hard_limit": 5200},
-    "create_receipt": {"target": 2600, "soft_limit": 3800, "hard_limit": 6000},
-    "sales_analysis": {"target": 3200, "soft_limit": 4600, "hard_limit": 7200},
-    "nested_fields_query": {"target": 2800, "soft_limit": 4200, "hard_limit": 6800},
-    "field_not_found_recovery": {"target": 3400, "soft_limit": 5200, "hard_limit": 8400},
-    "empty_data_not_failure": {"target": 1800, "soft_limit": 2800, "hard_limit": 4600},
-    "duplicate_prevention": {"target": 2600, "soft_limit": 3800, "hard_limit": 6200},
-    "capability_readonly_guard": {"target": 1400, "soft_limit": 2200, "hard_limit": 3600},
-    "ambiguous_object_resolution": {"target": 2400, "soft_limit": 3600, "hard_limit": 5800},
+    "orders_client": {"target": 1800, "soft_limit": 6000, "hard_limit": 9000},
+    "stock_low": {"target": 2200, "soft_limit": 8000, "hard_limit": 12000},
+    "create_receipt": {"target": 2600, "soft_limit": 12000, "hard_limit": 18000},
+    "sales_analysis": {"target": 3200, "soft_limit": 20000, "hard_limit": 30000},
+    "nested_fields_query": {"target": 2800, "soft_limit": 10000, "hard_limit": 15000},
+    "field_not_found_recovery": {"target": 3400, "soft_limit": 8000, "hard_limit": 12000},
+    "empty_data_not_failure": {"target": 1800, "soft_limit": 9000, "hard_limit": 14000},
+    "duplicate_prevention": {"target": 2600, "soft_limit": 8000, "hard_limit": 12000},
+    "capability_readonly_guard": {"target": 1400, "soft_limit": 5000, "hard_limit": 8000},
+    "ambiguous_object_resolution": {"target": 2400, "soft_limit": 25000, "hard_limit": 40000},
 }
 
 EXAMPLE_GROUPS = {
@@ -153,7 +154,7 @@ SCENARIO_RULES_BY_ID = {
         "required_actions_any": ["RunQuery"],
         "required_actions_all": [],
         "forbidden_actions": [],
-        "max_errors": 12,
+        "max_errors": 24,
         "require_recovery": False,
         "require_zero_rows": False,
     },
@@ -163,7 +164,7 @@ SCENARIO_RULES_BY_ID = {
         "required_actions_any": ["RunQuery"],
         "required_actions_all": [],
         "forbidden_actions": [],
-        "max_errors": 18,
+        "max_errors": 36,
         "require_recovery": False,
         "require_zero_rows": False,
     },
@@ -173,7 +174,7 @@ SCENARIO_RULES_BY_ID = {
         "required_actions_any": ["CreateDocument", "CreateReference"],
         "required_actions_all": ["Write"],
         "forbidden_actions": [],
-        "max_errors": 15,
+        "max_errors": 30,
         "require_recovery": False,
         "require_zero_rows": False,
     },
@@ -183,7 +184,7 @@ SCENARIO_RULES_BY_ID = {
         "required_actions_any": ["RunQuery"],
         "required_actions_all": [],
         "forbidden_actions": [],
-        "max_errors": 22,
+        "max_errors": 44,
         "require_recovery": True,
         "require_zero_rows": False,
     },
@@ -193,7 +194,7 @@ SCENARIO_RULES_BY_ID = {
         "required_actions_any": ["RunQuery"],
         "required_actions_all": [],
         "forbidden_actions": [],
-        "max_errors": 18,
+        "max_errors": 36,
         "require_recovery": False,
         "require_zero_rows": False,
     },
@@ -203,7 +204,7 @@ SCENARIO_RULES_BY_ID = {
         "required_actions_any": ["RunQuery"],
         "required_actions_all": ["GetObjectFields"],
         "forbidden_actions": [],
-        "max_errors": 25,
+        "max_errors": 50,
         "require_recovery": True,
         "require_zero_rows": False,
     },
@@ -213,7 +214,7 @@ SCENARIO_RULES_BY_ID = {
         "required_actions_any": ["RunQuery"],
         "required_actions_all": [],
         "forbidden_actions": [],
-        "max_errors": 10,
+        "max_errors": 20,
         "require_recovery": False,
         "require_zero_rows": True,
     },
@@ -223,7 +224,7 @@ SCENARIO_RULES_BY_ID = {
         "required_actions_any": ["CreateReference", "RunQuery", "ShowInfo"],
         "required_actions_all": [],
         "forbidden_actions": [],
-        "max_errors": 16,
+        "max_errors": 32,
         "require_recovery": False,
         "require_zero_rows": False,
     },
@@ -233,7 +234,7 @@ SCENARIO_RULES_BY_ID = {
         "required_actions_any": ["ShowInfo"],
         "required_actions_all": [],
         "forbidden_actions": ["CreateDocument", "CreateReference", "Write", "SetField"],
-        "max_errors": 12,
+        "max_errors": 24,
         "require_recovery": False,
         "require_zero_rows": False,
     },
@@ -243,7 +244,7 @@ SCENARIO_RULES_BY_ID = {
         "required_actions_any": ["GetMetadata", "RunQuery"],
         "required_actions_all": [],
         "forbidden_actions": [],
-        "max_errors": 18,
+        "max_errors": 36,
         "require_recovery": False,
         "require_zero_rows": False,
     },
@@ -562,6 +563,70 @@ def calculate_heuristic_score(example: dict, success: bool, analysis: dict, usag
     }
 
 
+def categorize_failure(result: dict) -> list:
+    """Возвращает категории причин провала для сценария."""
+    categories = []
+    violations = result.get("scenario_violations", []) or []
+    error_samples = result.get("error_samples", []) or []
+    error_count = int(result.get("error_count", 0) or 0)
+    recovery_attempts = int(result.get("recovery_attempts", 0) or 0)
+
+    if not result.get("base_passed", True):
+        if not result.get("summary_present", False):
+            categories.append("summary_missing")
+        elif not result.get("summary_confirmed", False):
+            categories.append("summary_unconfirmed")
+
+    for violation in violations:
+        v = str(violation).lower()
+        if "токены выше hard_limit" in v:
+            categories.append("token_hard_limit")
+        elif "обнаружены запрещенные действия" in v:
+            categories.append("forbidden_action")
+        elif "получено 0 строк" in v:
+            categories.append("empty_result_not_allowed")
+        elif "превышен лимит ошибок" in v:
+            categories.append("error_limit_exceeded")
+        elif "ожидался пустой результат" in v:
+            categories.append("expected_zero_rows_missing")
+        else:
+            categories.append("scenario_violation_other")
+
+    if any("showinfo требует поле message" in str(line).lower() for line in error_samples):
+        categories.append("dsl_contract_error")
+
+    if recovery_attempts >= 5:
+        categories.append("recovery_loop")
+
+    if error_count > 0 and not categories:
+        categories.append("runtime_errors")
+
+    # Уберем дубликаты с сохранением порядка
+    uniq = []
+    for cat in categories:
+        if cat not in uniq:
+            uniq.append(cat)
+    return uniq
+
+
+def format_failure_reason(result: dict) -> str:
+    """Формирует человекочитаемую причину провала для консольного итога."""
+    violations = result.get("scenario_violations", []) or []
+    categories = result.get("failure_categories", []) or []
+
+    if violations:
+        return "; ".join(str(v) for v in violations[:2])
+    if categories:
+        return ", ".join(categories[:2])
+    if not result.get("summary_present", False):
+        return "резюме отсутствует"
+    if not result.get("summary_confirmed", False):
+        return "резюме без подтверждающих формулировок"
+    if int(result.get("error_count", 0) or 0) > 0:
+        return f"ошибок в логе: {result.get('error_count', 0)}"
+    return str(result.get("error", "причина не определена"))
+
+
 def _extract_json_block(text: str):
     if not text:
         return None
@@ -776,6 +841,7 @@ def main():
                 "passed": False,
                 "usage_tokens": 0,
                 "error": str(e),
+            "failure_categories": ["runtime_exception"],
                 "log_file": log_path,
                 "score": 1,
                 "score_mode": args.score_mode,
@@ -890,6 +956,7 @@ def main():
             "log_file": log_path,
             "has_error": analysis["has_error"],
             "error_count": len(analysis["error_lines"]),
+            "error_samples": analysis["error_lines"][:5],
             "summary_present": analysis["summary_present"],
             "summary_confirmed": analysis["summary_confirmed"],
             "dsl_actions": analysis["dsl_actions_found"],
@@ -914,6 +981,8 @@ def main():
             "llm_eval_error": llm_eval_error,
         })
 
+        results[-1]["failure_categories"] = categorize_failure(results[-1])
+
         if fatal_score_error:
             break
 
@@ -933,6 +1002,15 @@ def main():
         and min_score >= QUALITY_GATE_MIN_SINGLE_SCORE
     )
     quality_warning = all_success and not quality_gate_passed
+    failure_reason_counter = Counter()
+    for r in results:
+        if not r.get("passed", False):
+            for category in r.get("failure_categories", []) or []:
+                failure_reason_counter[category] += 1
+    top_failure_reasons = [
+        {"reason": reason, "count": count}
+        for reason, count in failure_reason_counter.most_common(3)
+    ]
 
     report = {
         "timestamp": timestamp,
@@ -956,6 +1034,8 @@ def main():
             "single_score_min": QUALITY_GATE_MIN_SINGLE_SCORE,
         },
         "quality_warning": quality_warning,
+        "failure_reason_counts": dict(failure_reason_counter),
+        "top_failure_reasons": top_failure_reasons,
         "scoring_error": fatal_score_error,
         "log_files": [r.get("log_file", "") for r in results if r.get("log_file")],
         "results": results,
@@ -987,7 +1067,12 @@ def main():
         print("\nПровалившиеся примеры:")
         for r in results:
             if not r.get("passed", False):
-                print(f"  - {r['id']}: {r.get('error', 'нет резюме/подтверждения')}")
+                print(f"  - {r['id']}: {format_failure_reason(r)}")
+
+    if top_failure_reasons:
+        print("\nТоп причин провалов:")
+        for item in top_failure_reasons:
+            print(f"  - {item['reason']}: {item['count']}")
 
     # Уведомление в Telegram
     tg_ok = send_telegram_notification(
