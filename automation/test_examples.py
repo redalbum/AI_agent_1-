@@ -107,8 +107,8 @@ README_EXAMPLES = [
     },
 ]
 
-# Тариф Gitsell: 400 руб / 1 800 000 токенов
-GITSELL_RUB_PER_TOKEN = 400 / 1_800_000
+# Тариф Gitsell: 990 руб / 1 800 000 токенов
+GITSELL_RUB_PER_TOKEN = 990 / 1_800_000
 
 # Слова подтверждения в резюме (регистронезависимо)
 SUMMARY_CONFIRM_WORDS = (
