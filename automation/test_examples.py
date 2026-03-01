@@ -697,32 +697,15 @@ def main():
     )
     parser.add_argument(
         "--score-mode",
-        default="heuristic",
+        default="hybrid",
         choices=["heuristic", "llm", "hybrid"],
         help="Режим оценки: heuristic (локально), llm (внешний LLM), hybrid (обе оценки)",
     )
-    parser.add_argument(
-        "--score-llm-url",
-        default=os.environ.get("SCORE_LLM_API_URL", ""),
-        help="URL внешнего LLM API для score (OpenAI-compatible chat/completions)",
-    )
-    parser.add_argument(
-        "--score-llm-key",
-        default=os.environ.get("SCORE_LLM_API_KEY", ""),
-        help="API-ключ внешнего LLM для score",
-    )
-    parser.add_argument(
-        "--score-llm-model",
-        default=os.environ.get("SCORE_LLM_MODEL", ""),
-        help="Модель внешнего LLM для score",
-    )
-    parser.add_argument(
-        "--score-llm-timeout",
-        type=int,
-        default=int(os.environ.get("SCORE_LLM_TIMEOUT", "30")),
-        help="Таймаут внешнего LLM (сек)",
-    )
     args = parser.parse_args()
+    score_llm_url = os.environ.get("SCORE_LLM_API_URL", "")
+    score_llm_key = os.environ.get("SCORE_LLM_API_KEY", "")
+    score_llm_model = os.environ.get("SCORE_LLM_MODEL", "")
+    score_llm_timeout = int(os.environ.get("SCORE_LLM_TIMEOUT", "30"))
 
     connection_string = get_connection_string(args.connection)
     log_dir = args.log_dir or os.path.join(_script_dir, "logs")
@@ -840,10 +823,10 @@ def main():
             try:
                 llm_eval = call_external_llm_score(
                     eval_payload=eval_payload,
-                    score_llm_url=args.score_llm_url,
-                    score_llm_key=args.score_llm_key,
-                    score_llm_model=args.score_llm_model,
-                    timeout_sec=args.score_llm_timeout,
+                    score_llm_url=score_llm_url,
+                    score_llm_key=score_llm_key,
+                    score_llm_model=score_llm_model,
+                    timeout_sec=score_llm_timeout,
                 )
             except Exception as e:
                 llm_eval_error = str(e)
@@ -924,7 +907,7 @@ def main():
             "score_reason": score_reason,
             "score_version": SCORE_VERSION,
             "heuristic_score": int(heuristic["score"]),
-            "llm_eval_model": args.score_llm_model if args.score_mode in ("llm", "hybrid") else "",
+            "llm_eval_model": score_llm_model if args.score_mode in ("llm", "hybrid") else "",
             "llm_eval_score": int(llm_eval["score"]) if llm_eval else None,
             "llm_eval_tokens": int(llm_eval["tokens"]) if llm_eval else 0,
             "llm_eval_reason": str(llm_eval.get("reason", "")) if llm_eval else "",
