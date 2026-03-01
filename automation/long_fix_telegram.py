@@ -313,9 +313,11 @@ def cmd_run(args):
         save_cycle_state(state)
 
         if not failed:
+            avg_score = report.get("avg_score", 0)
             send_telegram_notification(
                 f"<b>Все тесты пройдены</b>\n\n"
                 f"Токены: {total_tokens:,} | Стоимость: ~{total_cost_rub} ₽\n"
+                f"Средний score: {avg_score}\n"
                 f"Каталог: <code>{report_path}</code>"
             )
             print("Все тесты пройдены.")
@@ -401,16 +403,20 @@ def cmd_run(args):
             passed_count = len(new_report.get("results", [])) - len(new_failed)
             total_count = len(new_report.get("results", []))
             all_ok = not new_failed
+            avg_score = new_report.get("avg_score", 0)
             send_telegram_notification(
                 f"<b>Результат тестов после правок</b>\n\n"
                 f"Пройдено: {passed_count}/{total_count}\n"
                 f"Токены: {run_tokens:,} | Стоимость: ~{run_cost} ₽\n"
+                f"Средний score: {avg_score}\n"
                 f"Каталог: <code>{new_report_path}</code>\n"
                 f"{'✅ Все пройдены' if all_ok else '❌ Есть провалы: ' + ', '.join(new_failed)}"
             )
             if all_ok:
                 send_telegram_notification(
-                    f"<b>Все тесты пройдены</b>\n\nТокены за цикл: {total_tokens:,} | Стоимость: ~{total_cost_rub} ₽"
+                    f"<b>Все тесты пройдены</b>\n\n"
+                    f"Токены за цикл: {total_tokens:,} | Стоимость: ~{total_cost_rub} ₽\n"
+                    f"Средний score: {avg_score}"
                 )
                 print("Все тесты пройдены.")
                 return 0

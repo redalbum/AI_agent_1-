@@ -18,6 +18,7 @@ import sys
 import os
 import re
 import json
+import statistics
 import urllib.request
 import urllib.error
 import urllib.parse
@@ -67,6 +68,42 @@ README_EXAMPLES = [
         "type": "Запрос1С",
         "description": "Анализ динамики продаж",
     },
+    {
+        "id": "nested_fields_query",
+        "text": "Покажи топ-5 клиентов по сумме продаж за последний месяц: Контрагент.Наименование и итоговая сумма.",
+        "type": "Запрос1С",
+        "description": "Вложенные поля и dot-path",
+    },
+    {
+        "id": "field_not_found_recovery",
+        "text": "Построй отчет по продажам за месяц с полями Категория и СуммаПродаж, даже если потребуется восстановление после ошибки поля.",
+        "type": "Запрос1С",
+        "description": "Recovery после ошибки поля",
+    },
+    {
+        "id": "empty_data_not_failure",
+        "text": "Покажи продажи за будущий период с 01.01.2035 по 31.01.2035 и корректно сообщи, если данных нет.",
+        "type": "Запрос1С",
+        "description": "Пустой результат не = провал",
+    },
+    {
+        "id": "duplicate_prevention",
+        "text": "Создай контрагента с наименованием 'Мир Мебели'. Если уже существует, не создавай дубль и сообщи это.",
+        "type": "Агент",
+        "description": "Предотвращение дублей при записи",
+    },
+    {
+        "id": "capability_readonly_guard",
+        "text": "Создай новый документ реализации прямо сейчас и проведи его.",
+        "type": "Запрос1С",
+        "description": "Guard записи в read-only режиме",
+    },
+    {
+        "id": "ambiguous_object_resolution",
+        "text": "Покажи продажи по реализации за прошлый месяц по дням и сумме.",
+        "type": "Запрос1С",
+        "description": "Разрешение неоднозначного объекта",
+    },
 ]
 
 # Тариф Gitsell: 400 руб / 1 800 000 токенов
@@ -79,6 +116,138 @@ SUMMARY_CONFIRM_WORDS = (
 )
 SUMMARY_MARKER = "=== РЕЗЮМЕ ВЫПОЛНЕННОЙ РАБОТЫ ==="
 SUMMARY_NOT_FORMED = "Резюме не сформировано"
+
+# Версия скоринга для отслеживания изменений формулы
+SCORE_VERSION = "v1"
+
+# Режим/порог quality gate
+QUALITY_GATE_MIN_AVG_SCORE = 70
+QUALITY_GATE_MIN_SINGLE_SCORE = 40
+
+# Профили бюджета токенов для оценки эффективности
+TOKEN_BUDGETS_BY_EXAMPLE = {
+    "orders_client": {"target": 1800, "soft_limit": 2600, "hard_limit": 4200},
+    "stock_low": {"target": 2200, "soft_limit": 3200, "hard_limit": 5200},
+    "create_receipt": {"target": 2600, "soft_limit": 3800, "hard_limit": 6000},
+    "sales_analysis": {"target": 3200, "soft_limit": 4600, "hard_limit": 7200},
+    "nested_fields_query": {"target": 2800, "soft_limit": 4200, "hard_limit": 6800},
+    "field_not_found_recovery": {"target": 3400, "soft_limit": 5200, "hard_limit": 8400},
+    "empty_data_not_failure": {"target": 1800, "soft_limit": 2800, "hard_limit": 4600},
+    "duplicate_prevention": {"target": 2600, "soft_limit": 3800, "hard_limit": 6200},
+    "capability_readonly_guard": {"target": 1400, "soft_limit": 2200, "hard_limit": 3600},
+    "ambiguous_object_resolution": {"target": 2400, "soft_limit": 3600, "hard_limit": 5800},
+}
+
+EXAMPLE_GROUPS = {
+    "smoke": ["orders_client", "stock_low", "create_receipt", "sales_analysis"],
+    "recovery": ["field_not_found_recovery", "nested_fields_query", "sales_analysis"],
+    "write": ["create_receipt", "duplicate_prevention"],
+    "safety": ["capability_readonly_guard", "empty_data_not_failure"],
+}
+
+# Сценарные правила для pass/score
+SCENARIO_RULES_BY_ID = {
+    "orders_client": {
+        "expect_success": True,
+        "allow_empty_result": False,
+        "required_actions_any": ["RunQuery"],
+        "required_actions_all": [],
+        "forbidden_actions": [],
+        "max_errors": 12,
+        "require_recovery": False,
+        "require_zero_rows": False,
+    },
+    "stock_low": {
+        "expect_success": True,
+        "allow_empty_result": True,
+        "required_actions_any": ["RunQuery"],
+        "required_actions_all": [],
+        "forbidden_actions": [],
+        "max_errors": 18,
+        "require_recovery": False,
+        "require_zero_rows": False,
+    },
+    "create_receipt": {
+        "expect_success": True,
+        "allow_empty_result": True,
+        "required_actions_any": ["CreateDocument", "CreateReference"],
+        "required_actions_all": ["Write"],
+        "forbidden_actions": [],
+        "max_errors": 15,
+        "require_recovery": False,
+        "require_zero_rows": False,
+    },
+    "sales_analysis": {
+        "expect_success": True,
+        "allow_empty_result": True,
+        "required_actions_any": ["RunQuery"],
+        "required_actions_all": [],
+        "forbidden_actions": [],
+        "max_errors": 22,
+        "require_recovery": True,
+        "require_zero_rows": False,
+    },
+    "nested_fields_query": {
+        "expect_success": True,
+        "allow_empty_result": True,
+        "required_actions_any": ["RunQuery"],
+        "required_actions_all": [],
+        "forbidden_actions": [],
+        "max_errors": 18,
+        "require_recovery": False,
+        "require_zero_rows": False,
+    },
+    "field_not_found_recovery": {
+        "expect_success": True,
+        "allow_empty_result": True,
+        "required_actions_any": ["RunQuery"],
+        "required_actions_all": ["GetObjectFields"],
+        "forbidden_actions": [],
+        "max_errors": 25,
+        "require_recovery": True,
+        "require_zero_rows": False,
+    },
+    "empty_data_not_failure": {
+        "expect_success": True,
+        "allow_empty_result": True,
+        "required_actions_any": ["RunQuery"],
+        "required_actions_all": [],
+        "forbidden_actions": [],
+        "max_errors": 10,
+        "require_recovery": False,
+        "require_zero_rows": True,
+    },
+    "duplicate_prevention": {
+        "expect_success": True,
+        "allow_empty_result": True,
+        "required_actions_any": ["CreateReference", "RunQuery", "ShowInfo"],
+        "required_actions_all": [],
+        "forbidden_actions": [],
+        "max_errors": 16,
+        "require_recovery": False,
+        "require_zero_rows": False,
+    },
+    "capability_readonly_guard": {
+        "expect_success": True,
+        "allow_empty_result": True,
+        "required_actions_any": ["ShowInfo"],
+        "required_actions_all": [],
+        "forbidden_actions": ["CreateDocument", "CreateReference", "Write", "SetField"],
+        "max_errors": 12,
+        "require_recovery": False,
+        "require_zero_rows": False,
+    },
+    "ambiguous_object_resolution": {
+        "expect_success": True,
+        "allow_empty_result": True,
+        "required_actions_any": ["GetMetadata", "RunQuery"],
+        "required_actions_all": [],
+        "forbidden_actions": [],
+        "max_errors": 18,
+        "require_recovery": False,
+        "require_zero_rows": False,
+    },
+}
 
 
 def _get(obj, name, default=None):
@@ -142,6 +311,9 @@ def analyze_log(log_text: str) -> dict:
         "plan_completed": False,
         "summary_present": False,
         "summary_confirmed": False,
+        "recovery_attempts": 0,
+        "runquery_zero_rows": False,
+        "premature_giveup_detected": False,
     }
 
     if not log_text:
@@ -169,10 +341,23 @@ def analyze_log(log_text: str) -> dict:
         # Summary
         if "summary" in line.lower() or "итог" in line.lower():
             analysis["summary_present"] = True
+        # Recovery-циклы
+        if "state_transition=validate->recover" in line.lower() or "stage=recover" in line.lower():
+            analysis["recovery_attempts"] += 1
+        # Пустой результат запроса
+        if "получено строк: 0" in line.lower():
+            analysis["runquery_zero_rows"] = True
+        # Признак ранней сдачи
+        if "не выполнена" in line.lower() and "showinfo" in line.lower():
+            analysis["premature_giveup_detected"] = True
 
     # Дополнительный поиск RunQuery, GetMetadata и т.д.
-    dsl_actions = re.findall(r"(RunQuery|GetMetadata|GetObjectFields|FindReferenceByName|CreateDocument|CreateReference)", log_text, re.I)
-    analysis["dsl_actions_found"] = list(set(dsl_actions))
+    dsl_actions = re.findall(
+        r"(RunQuery|GetMetadata|GetObjectFields|FindReferenceByName|CreateDocument|CreateReference|ShowInfo|CheckObjectExists|SelectObject|Write|SetField|FindReferenceByGUID|FindReferenceByURL|ForEach|SaveToStorage|LoadFromStorage)",
+        log_text,
+        re.I,
+    )
+    analysis["dsl_actions_found"] = sorted(_build_action_set(dsl_actions))
 
     # Резюме: проверка маркера и слов подтверждения
     if SUMMARY_MARKER in log_text:
@@ -192,6 +377,280 @@ def analyze_log(log_text: str) -> dict:
             )
 
     return analysis
+
+
+def _canonical_action(action_name: str) -> str:
+    if not action_name:
+        return ""
+    action = str(action_name).strip()
+    if not action:
+        return ""
+    return action[0].upper() + action[1:]
+
+
+def _build_action_set(actions) -> set:
+    return {_canonical_action(a) for a in (actions or []) if _canonical_action(a)}
+
+
+def _get_scenario_rule(example_id: str) -> dict:
+    rule = SCENARIO_RULES_BY_ID.get(example_id, {})
+    return {
+        "expect_success": bool(rule.get("expect_success", True)),
+        "allow_empty_result": bool(rule.get("allow_empty_result", True)),
+        "required_actions_any": list(rule.get("required_actions_any", [])),
+        "required_actions_all": list(rule.get("required_actions_all", [])),
+        "forbidden_actions": list(rule.get("forbidden_actions", [])),
+        "max_errors": int(rule.get("max_errors", 999)),
+        "require_recovery": bool(rule.get("require_recovery", False)),
+        "require_zero_rows": bool(rule.get("require_zero_rows", False)),
+    }
+
+
+def evaluate_scenario_rules(example: dict, success: bool, analysis: dict, usage_tokens: int) -> dict:
+    example_id = example.get("id", "")
+    rule = _get_scenario_rule(example_id)
+    actions = _build_action_set(analysis.get("dsl_actions_found", []))
+    violations = []
+    evidences = []
+
+    required_any = [_canonical_action(a) for a in rule["required_actions_any"]]
+    required_all = [_canonical_action(a) for a in rule["required_actions_all"]]
+    forbidden = [_canonical_action(a) for a in rule["forbidden_actions"]]
+
+    if required_any:
+        has_any = any(a in actions for a in required_any)
+        if not has_any:
+            violations.append(f"Нет ни одного обязательного действия из any: {', '.join(required_any)}")
+        else:
+            evidences.append(f"Найдено обязательное действие(any): {', '.join(sorted(actions.intersection(required_any)))}")
+
+    missed_all = [a for a in required_all if a not in actions]
+    if missed_all:
+        violations.append(f"Отсутствуют обязательные действия(all): {', '.join(missed_all)}")
+    elif required_all:
+        evidences.append(f"Все обязательные действия(all) присутствуют: {', '.join(required_all)}")
+
+    violated_forbidden = [a for a in forbidden if a in actions]
+    if violated_forbidden:
+        violations.append(f"Обнаружены запрещенные действия: {', '.join(violated_forbidden)}")
+
+    if rule["expect_success"] and not success:
+        violations.append("Сценарий ожидал успешное завершение, но Успех=False")
+
+    error_count = len(analysis.get("error_lines", []))
+    if error_count > rule["max_errors"]:
+        violations.append(f"Превышен лимит ошибок: {error_count} > {rule['max_errors']}")
+
+    if not rule["allow_empty_result"] and analysis.get("runquery_zero_rows"):
+        violations.append("Получено 0 строк, а для сценария это не допускается")
+
+    if rule["require_recovery"] and int(analysis.get("recovery_attempts", 0)) == 0:
+        violations.append("Для сценария ожидается recovery, но recovery-циклы не обнаружены")
+
+    if rule["require_zero_rows"] and not analysis.get("runquery_zero_rows", False):
+        violations.append("Для сценария ожидался пустой результат (0 строк), но признак не найден")
+
+    profile = TOKEN_BUDGETS_BY_EXAMPLE.get(example_id)
+    if profile and usage_tokens > int(profile.get("hard_limit", 10**9)):
+        violations.append(
+            f"Токены выше hard_limit: {usage_tokens} > {int(profile.get('hard_limit'))}"
+        )
+    elif profile and usage_tokens <= int(profile.get("soft_limit", 10**9)):
+        evidences.append("Токены в допустимом диапазоне")
+
+    passed = len(violations) == 0
+    return {
+        "passed": passed,
+        "violations": violations,
+        "evidences": evidences,
+        "rule": rule,
+        "actions": sorted(actions),
+    }
+
+
+def _score_efficiency_tokens(usage_tokens: int, profile: dict) -> tuple:
+    if not profile:
+        return 10, "Профиль токенов не задан: нейтральная оценка 10/20"
+
+    target = int(profile.get("target", 0))
+    soft = int(profile.get("soft_limit", max(target, 1)))
+    hard = int(profile.get("hard_limit", max(soft, 1)))
+
+    if usage_tokens <= target:
+        return 20, f"Токены в пределах target ({usage_tokens} <= {target})"
+    if usage_tokens <= soft:
+        gap = max(soft - target, 1)
+        score = 20 - round((usage_tokens - target) * 8 / gap)  # 20..12
+        return max(12, score), f"Токены выше target, но в soft_limit ({usage_tokens} <= {soft})"
+    if usage_tokens <= hard:
+        gap = max(hard - soft, 1)
+        score = 12 - round((usage_tokens - soft) * 12 / gap)  # 12..0
+        return max(0, score), f"Токены между soft/hard ({soft} < {usage_tokens} <= {hard})"
+    return 0, f"Токены выше hard_limit ({usage_tokens} > {hard})"
+
+
+def calculate_heuristic_score(example: dict, success: bool, analysis: dict, usage_tokens: int, scenario_eval: dict) -> dict:
+    example_id = example.get("id", "")
+    profile = TOKEN_BUDGETS_BY_EXAMPLE.get(example_id)
+    rule = scenario_eval.get("rule", {})
+    error_count = len(analysis.get("error_lines", []))
+    recovery_attempts = int(analysis.get("recovery_attempts", 0))
+
+    # 0..45
+    if success and analysis.get("summary_present") and analysis.get("summary_confirmed"):
+        business_outcome = 45
+        business_reason = "Успех=true и подтвержденное итоговое резюме"
+    elif success:
+        business_outcome = 34
+        business_reason = "Успех=true, но качество итогового резюме ниже целевого"
+    elif analysis.get("plan_completed"):
+        business_outcome = 18
+        business_reason = "План завершён частично, но финальный успех не достигнут"
+    else:
+        business_outcome = 3
+        business_reason = "Бизнес-результат не достигнут"
+
+    # 0..20
+    execution_quality = 20
+    execution_quality -= min(error_count, 8) * 2
+    if analysis.get("premature_giveup_detected"):
+        execution_quality -= 4
+    if not scenario_eval.get("passed", True):
+        execution_quality -= 4
+    execution_quality = max(0, execution_quality)
+    execution_reason = f"Ошибок: {error_count}, violations: {len(scenario_eval.get('violations', []))}"
+
+    # 0..15
+    if recovery_attempts > 0 and success:
+        recovery_resilience = min(15, 10 + recovery_attempts)
+        recovery_reason = f"Есть recovery ({recovery_attempts}) и успешное завершение"
+    elif recovery_attempts > 0 and not success:
+        recovery_resilience = max(0, 5 - min(recovery_attempts, 5))
+        recovery_reason = f"Recovery был ({recovery_attempts}), но без финального успеха"
+    elif success:
+        recovery_resilience = 8
+        recovery_reason = "Recovery не требовался, завершение успешное"
+    else:
+        recovery_resilience = 0
+        recovery_reason = "Нет признаков устойчивого восстановления"
+
+    if rule.get("require_recovery") and recovery_attempts == 0:
+        recovery_resilience = max(0, recovery_resilience - 5)
+        recovery_reason += "; ожидаемый recovery не обнаружен"
+
+    # 0..20
+    efficiency_tokens, efficiency_reason = _score_efficiency_tokens(usage_tokens, profile)
+
+    raw_score = business_outcome + execution_quality + recovery_resilience + efficiency_tokens
+    score = max(1, min(100, int(raw_score)))
+
+    return {
+        "score": score,
+        "breakdown": {
+            "business_outcome": business_outcome,
+            "execution_quality": execution_quality,
+            "recovery_resilience": recovery_resilience,
+            "efficiency_tokens": efficiency_tokens,
+        },
+        "reason": {
+            "business_outcome": business_reason,
+            "execution_quality": execution_reason,
+            "recovery_resilience": recovery_reason,
+            "efficiency_tokens": efficiency_reason,
+        },
+        "score_version": SCORE_VERSION,
+    }
+
+
+def _extract_json_block(text: str):
+    if not text:
+        return None
+    text = text.strip()
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+
+    left = text.find("{")
+    right = text.rfind("}")
+    if left >= 0 and right > left:
+        candidate = text[left:right + 1]
+        try:
+            return json.loads(candidate)
+        except Exception:
+            return None
+    return None
+
+
+def call_external_llm_score(eval_payload: dict, score_llm_url: str, score_llm_key: str, score_llm_model: str, timeout_sec: int = 30) -> dict:
+    if not score_llm_url:
+        raise RuntimeError("Не задан SCORE_LLM_API_URL или --score-llm-url")
+    if not score_llm_key:
+        raise RuntimeError("Не задан SCORE_LLM_API_KEY или --score-llm-key")
+    if not score_llm_model:
+        raise RuntimeError("Не задан SCORE_LLM_MODEL или --score-llm-model")
+
+    system_prompt = (
+        "Ты оцениваешь качество автотеста агента 1С. "
+        "Верни ТОЛЬКО JSON-объект с полями: score (1..100, integer), reason (string), risks (array of strings). "
+        "Оценка учитывает достижение бизнес-задачи, качество выполнения, устойчивость recovery и расход токенов."
+    )
+    user_prompt = (
+        "Оцени сценарий по данным:\n"
+        + json.dumps(eval_payload, ensure_ascii=False)
+    )
+    request_payload = {
+        "model": score_llm_model,
+        "temperature": 0.0,
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ],
+    }
+
+    data = json.dumps(request_payload, ensure_ascii=False).encode("utf-8")
+    req = urllib.request.Request(score_llm_url, data=data, method="POST")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("Authorization", f"Bearer {score_llm_key}")
+
+    try:
+        with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as e:
+        err_text = e.read().decode("utf-8", errors="replace") if hasattr(e, "read") else str(e)
+        raise RuntimeError(f"HTTP {e.code} при вызове score-LLM: {err_text[:500]}")
+    except Exception as e:
+        raise RuntimeError(f"Ошибка вызова score-LLM: {e}")
+
+    parsed = _extract_json_block(body)
+    body_json = _extract_json_block(body)
+    llm_tokens = 0
+    if isinstance(body_json, dict):
+        usage = body_json.get("usage") or {}
+        llm_tokens = int(usage.get("total_tokens") or 0)
+        # Для OpenAI-совместимых ответов достаем JSON из choices[0].message.content
+        try:
+            content = body_json["choices"][0]["message"]["content"]
+            choice_json = _extract_json_block(content)
+            if isinstance(choice_json, dict):
+                parsed = choice_json
+        except Exception:
+            pass
+
+    if not isinstance(parsed, dict):
+        raise RuntimeError("score-LLM вернул невалидный JSON-ответ для оценки")
+
+    llm_score = int(parsed.get("score", 0))
+    if llm_score < 1 or llm_score > 100:
+        raise RuntimeError(f"score-LLM вернул score вне диапазона 1..100: {llm_score}")
+
+    return {
+        "score": llm_score,
+        "reason": str(parsed.get("reason", "")),
+        "risks": parsed.get("risks", []),
+        "tokens": llm_tokens,
+        "raw": parsed,
+    }
 
 
 def main():
@@ -224,12 +683,44 @@ def main():
     parser.add_argument(
         "--example",
         default=None,
-        help="Запустить только один пример по id (orders_client, stock_low, create_receipt, sales_analysis)",
+        help="Запустить только один пример по id",
     )
     parser.add_argument(
         "--examples",
         default=None,
         help="Запустить только указанные примеры (id через запятую: orders_client,stock_low)",
+    )
+    parser.add_argument(
+        "--examples-group",
+        default=None,
+        help="Запустить группу сценариев: smoke|recovery|write|safety (или список через запятую)",
+    )
+    parser.add_argument(
+        "--score-mode",
+        default="heuristic",
+        choices=["heuristic", "llm", "hybrid"],
+        help="Режим оценки: heuristic (локально), llm (внешний LLM), hybrid (обе оценки)",
+    )
+    parser.add_argument(
+        "--score-llm-url",
+        default=os.environ.get("SCORE_LLM_API_URL", ""),
+        help="URL внешнего LLM API для score (OpenAI-compatible chat/completions)",
+    )
+    parser.add_argument(
+        "--score-llm-key",
+        default=os.environ.get("SCORE_LLM_API_KEY", ""),
+        help="API-ключ внешнего LLM для score",
+    )
+    parser.add_argument(
+        "--score-llm-model",
+        default=os.environ.get("SCORE_LLM_MODEL", ""),
+        help="Модель внешнего LLM для score",
+    )
+    parser.add_argument(
+        "--score-llm-timeout",
+        type=int,
+        default=int(os.environ.get("SCORE_LLM_TIMEOUT", "30")),
+        help="Таймаут внешнего LLM (сек)",
     )
     args = parser.parse_args()
 
@@ -253,6 +744,23 @@ def main():
         if not examples:
             print(f"Ошибка: примеры '{args.examples}' не найдены", file=sys.stderr)
             return 1
+    elif args.examples_group:
+        groups = [s.strip() for s in args.examples_group.split(",") if s.strip()]
+        unknown = [g for g in groups if g not in EXAMPLE_GROUPS]
+        if unknown:
+            print(
+                f"Ошибка: неизвестные группы: {', '.join(unknown)}. Доступно: {', '.join(sorted(EXAMPLE_GROUPS.keys()))}",
+                file=sys.stderr,
+            )
+            return 1
+        selected_ids = set()
+        for grp in groups:
+            for ex_id in EXAMPLE_GROUPS.get(grp, []):
+                selected_ids.add(ex_id)
+        examples = [e for e in examples if e["id"] in selected_ids]
+        if not examples:
+            print(f"Ошибка: группа(ы) '{args.examples_group}' не содержит сценариев", file=sys.stderr)
+            return 1
 
     print("=" * 70)
     print("Тестирование примеров (через COM)")
@@ -264,7 +772,7 @@ def main():
         return 1
 
     results = []
-    all_success = True
+    fatal_score_error = ""
 
     for ex in examples:
         print(f"\n--- {ex['id']}: {ex['description']} ---")
@@ -286,8 +794,12 @@ def main():
                 "usage_tokens": 0,
                 "error": str(e),
                 "log_file": log_path,
+                "score": 1,
+                "score_mode": args.score_mode,
+                "score_breakdown": {},
+                "score_reason": "Ошибка запуска сценария",
+                "score_version": SCORE_VERSION,
             })
-            all_success = False
             continue
 
         success = _get(result, "Успех", False)
@@ -296,10 +808,65 @@ def main():
         usage_tokens = int(_get(result, "UsageTokens") or 0)
 
         analysis = analyze_log(log_text)
-        passed = success and analysis["summary_present"] and analysis["summary_confirmed"]
+        base_passed = success and analysis["summary_present"] and analysis["summary_confirmed"]
+        scenario_eval = evaluate_scenario_rules(ex, success, analysis, usage_tokens)
+        heuristic = calculate_heuristic_score(ex, success, analysis, usage_tokens, scenario_eval)
+
+        llm_eval = None
+        llm_eval_error = ""
+        final_score = int(heuristic["score"])
+        score_reason = "Оценка по эвристике"
+
+        if args.score_mode in ("llm", "hybrid"):
+            eval_payload = {
+                "example_id": ex.get("id"),
+                "description": ex.get("description"),
+                "request_text": ex.get("text"),
+                "dialog_type": ex.get("type"),
+                "success": bool(success),
+                "base_passed": bool(base_passed),
+                "scenario_passed": bool(scenario_eval.get("passed")),
+                "usage_tokens": int(usage_tokens),
+                "error_count": len(analysis.get("error_lines", [])),
+                "recovery_attempts": int(analysis.get("recovery_attempts", 0)),
+                "runquery_zero_rows": bool(analysis.get("runquery_zero_rows", False)),
+                "dsl_actions": scenario_eval.get("actions", []),
+                "summary_present": bool(analysis.get("summary_present")),
+                "summary_confirmed": bool(analysis.get("summary_confirmed")),
+                "heuristic_score": int(heuristic["score"]),
+                "heuristic_breakdown": heuristic.get("breakdown", {}),
+                "scenario_violations": scenario_eval.get("violations", []),
+            }
+            try:
+                llm_eval = call_external_llm_score(
+                    eval_payload=eval_payload,
+                    score_llm_url=args.score_llm_url,
+                    score_llm_key=args.score_llm_key,
+                    score_llm_model=args.score_llm_model,
+                    timeout_sec=args.score_llm_timeout,
+                )
+            except Exception as e:
+                llm_eval_error = str(e)
+                fatal_score_error = f"{ex['id']}: {llm_eval_error}"
+                print(f"  ОШИБКА score-LLM: {llm_eval_error}")
+
+            if llm_eval is not None:
+                if args.score_mode == "llm":
+                    final_score = int(llm_eval["score"])
+                    score_reason = f"Оценка внешним LLM: {llm_eval.get('reason', '')}"
+                else:
+                    final_score = max(1, min(100, int(round(0.6 * int(heuristic["score"]) + 0.4 * int(llm_eval["score"])))))
+                    score_reason = (
+                        f"Hybrid score (0.6*heuristic + 0.4*llm). "
+                        f"LLM reason: {llm_eval.get('reason', '')}"
+                    )
+
+        passed = base_passed and bool(scenario_eval.get("passed"))
+        if fatal_score_error:
+            passed = False
 
         status = "OK" if passed else "FAIL"
-        print(f"  Результат: {status} | Диалог: {ref_str}")
+        print(f"  Результат: {status} | Score: {final_score}/100 | Диалог: {ref_str}")
 
         if analysis["has_error"] and analysis["error_lines"]:
             print(f"  Ошибки в логе: {len(analysis['error_lines'])}")
@@ -309,6 +876,11 @@ def main():
 
         if analysis["dsl_actions_found"]:
             print(f"  DSL-действия: {', '.join(analysis['dsl_actions_found'])}")
+        if args.verbose and scenario_eval.get("violations"):
+            for v in scenario_eval["violations"][:5]:
+                print(f"    [rule-violation] {v}")
+        if llm_eval and args.verbose:
+            print(f"    [llm-score] {llm_eval['score']} | {llm_eval.get('reason', '')[:120]}")
 
         # Сохранение лога в отдельный файл сразу после диалога
         log_content = (
@@ -328,6 +900,8 @@ def main():
             "type": ex["type"],
             "success": success,
             "passed": passed,
+            "base_passed": base_passed,
+            "scenario_passed": bool(scenario_eval.get("passed")),
             "usage_tokens": usage_tokens,
             "dialog_ref": ref_str,
             "log_file": log_path,
@@ -338,13 +912,45 @@ def main():
             "dsl_actions": analysis["dsl_actions_found"],
             "ai_calls": analysis["ai_calls"],
             "plan_completed": analysis["plan_completed"],
+            "recovery_attempts": analysis.get("recovery_attempts", 0),
+            "runquery_zero_rows": analysis.get("runquery_zero_rows", False),
+            "scenario_rule": scenario_eval.get("rule", {}),
+            "scenario_violations": scenario_eval.get("violations", []),
+            "scenario_evidences": scenario_eval.get("evidences", []),
+            "score": final_score,
+            "score_mode": args.score_mode,
+            "score_breakdown": heuristic.get("breakdown", {}),
+            "score_reason_details": heuristic.get("reason", {}),
+            "score_reason": score_reason,
+            "score_version": SCORE_VERSION,
+            "heuristic_score": int(heuristic["score"]),
+            "llm_eval_model": args.score_llm_model if args.score_mode in ("llm", "hybrid") else "",
+            "llm_eval_score": int(llm_eval["score"]) if llm_eval else None,
+            "llm_eval_tokens": int(llm_eval["tokens"]) if llm_eval else 0,
+            "llm_eval_reason": str(llm_eval.get("reason", "")) if llm_eval else "",
+            "llm_eval_error": llm_eval_error,
         })
+
+        if fatal_score_error:
+            break
 
     # Сохранение отчёта
     passed_count = sum(1 for r in results if r.get("passed", False))
     total_tokens = sum(r.get("usage_tokens", 0) for r in results)
     cost_rub = round(total_tokens * GITSELL_RUB_PER_TOKEN, 2)
     all_success = all(r.get("passed", False) for r in results)
+    scores = [int(r.get("score", 1)) for r in results] if results else [1]
+    avg_score = round(sum(scores) / len(scores), 2) if scores else 0
+    median_score = round(statistics.median(scores), 2) if scores else 0
+    min_score = min(scores) if scores else 0
+    max_score = max(scores) if scores else 0
+    quality_gate_passed = (
+        all_success
+        and avg_score >= QUALITY_GATE_MIN_AVG_SCORE
+        and min_score >= QUALITY_GATE_MIN_SINGLE_SCORE
+    )
+    quality_warning = all_success and not quality_gate_passed
+
     report = {
         "timestamp": timestamp,
         "run_id": run_prefix,
@@ -355,6 +961,19 @@ def main():
         "all_success": all_success,
         "total_tokens": total_tokens,
         "cost_rub": cost_rub,
+        "score_mode": args.score_mode,
+        "score_version": SCORE_VERSION,
+        "avg_score": avg_score,
+        "median_score": median_score,
+        "min_score": min_score,
+        "max_score": max_score,
+        "quality_gate_passed": quality_gate_passed,
+        "quality_gate_thresholds": {
+            "avg_score_min": QUALITY_GATE_MIN_AVG_SCORE,
+            "single_score_min": QUALITY_GATE_MIN_SINGLE_SCORE,
+        },
+        "quality_warning": quality_warning,
+        "scoring_error": fatal_score_error,
         "log_files": [r.get("log_file", "") for r in results if r.get("log_file")],
         "results": results,
     }
@@ -368,8 +987,18 @@ def main():
     print("=" * 70)
     print(f"Пройдено: {passed_count}/{len(results)}")
     print(f"Токены: {total_tokens:,} | Стоимость: ~{cost_rub} ₽")
+    print(f"Score: avg={avg_score} | median={median_score} | min={min_score} | max={max_score}")
+    print(
+        f"Quality gate: {'PASS' if quality_gate_passed else 'FAIL'} "
+        f"(avg>={QUALITY_GATE_MIN_AVG_SCORE}, min>={QUALITY_GATE_MIN_SINGLE_SCORE})"
+    )
     print(f"Каталог логов: {run_log_dir}")
     print(f"Файлы: {len([r for r in results if r.get('log_file')])} шт.")
+
+    if quality_warning:
+        print("\nВнимание: все сценарии прошли, но quality gate не достигнут (низкий score).")
+    if fatal_score_error:
+        print(f"\nКритическая ошибка scoring: {fatal_score_error}", file=sys.stderr)
 
     if not all_success:
         print("\nПровалившиеся примеры:")
@@ -382,6 +1011,8 @@ def main():
         f"<b>Тесты примеров завершены</b>\n\n"
         f"Пройдено: {passed_count}/{len(results)}\n"
         f"Токены: {total_tokens:,} | Стоимость: ~{cost_rub} ₽\n"
+        f"Score avg/min/max: {avg_score}/{min_score}/{max_score}\n"
+        f"Quality gate: {'PASS' if quality_gate_passed else 'FAIL'}\n"
         f"Каталог: <code>{run_log_dir}</code>\n"
         f"{'✅ Все пройдены' if all_success else '❌ Есть провалы'}"
     )
@@ -392,6 +1023,8 @@ def main():
     else:
         print("\nTelegram: не настроен (TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID в .env)")
 
+    if fatal_score_error:
+        return 1
     return 0 if all_success else 1
 
 
