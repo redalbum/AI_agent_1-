@@ -1,6 +1,7 @@
 # Сборка расширения (.cfe)
 bin/
 temp_build_83/
+xml83/
 
 # Служебные файлы EDT
 .metadata/
