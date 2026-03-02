@@ -29,3 +29,19 @@ def get_connection_string(connection_string: str = None) -> str:
     if connection_string:
         return connection_string
     return DEFAULT_CONNECTION_STRING
+
+
+def get_platform_83() -> str:
+    """Путь к 1cv8.exe платформы 8.3."""
+    return os.environ.get(
+        "PLATFORM_83",
+        r"C:\Program Files\1cv8\8.3.27.1859\bin\1cv8.exe",
+    )
+
+
+def get_platform_85() -> str:
+    """Путь к 1cv8.exe платформы 8.5."""
+    return os.environ.get(
+        "PLATFORM_85",
+        r"C:\Program Files\1cv8\8.5.1.1150\bin\1cv8.exe",
+    )

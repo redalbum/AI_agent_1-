@@ -29,11 +29,10 @@ _script_dir = os.path.dirname(os.path.abspath(__file__))
 if _script_dir not in sys.path:
     sys.path.insert(0, _script_dir)
 
-from com_1c.config import get_connection_string
+from com_1c.config import get_connection_string, get_platform_85
 from com_1c.com_connector import setup_console_encoding
 
 EXTENSION_NAME = "ИИ_Агент"
-DEFAULT_PLATFORM = r"C:\Program Files\1cv8\8.5.1.1150\bin\1cv8.exe"
 
 
 def main():
@@ -85,7 +84,7 @@ def main():
         ib_user = m2.group(1) if m2 else ""
         ib_pwd = m3.group(1) if m3 else ""
 
-    platform_exe = DEFAULT_PLATFORM
+    platform_exe = get_platform_85()
     if not os.path.isfile(platform_exe):
         print(f"Ошибка: 1cv8 не найден: {platform_exe}", file=sys.stderr)
         sys.exit(1)

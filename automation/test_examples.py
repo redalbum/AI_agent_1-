@@ -323,11 +323,15 @@ def analyze_log(log_text: str) -> dict:
         return analysis
 
     lines = log_text.split("\n")
+    non_system_lines = []
     for line in lines:
         line_stripped = line.strip()
         line_lower = line.lower()
+        is_system_line = line_stripped.startswith("[system]")
+        if not is_system_line:
+            non_system_lines.append(line)
         # Ошибки
-        if "[ОШИБКА]" in line or "Ошибка" in line or "ошибка" in line:
+        if (not is_system_line) and ("[ОШИБКА]" in line or "Ошибка" in line or "ошибка" in line):
             analysis["has_error"] = True
             analysis["error_lines"].append(line_stripped[:200])
         # DSL шаги
@@ -349,21 +353,39 @@ def analyze_log(log_text: str) -> dict:
         if "state_transition=validate->recover" in line_lower or "stage=recover" in line_lower:
             analysis["recovery_attempts"] += 1
         # Пустой результат запроса
-        if "получено строк: 0" in line_lower or "\"row_count\": 0" in line_lower or "\"row_count\":0" in line_lower:
+        if (not is_system_line) and "получено строк: 0" in line_lower:
             analysis["runquery_zero_rows"] = True
         # Признак ранней сдачи
         if "не выполнена" in line_lower and "showinfo" in line_lower:
             analysis["premature_giveup_detected"] = True
 
-    # Извлекаем действия по факту выполнения, а не из текста системных промптов.
-    dsl_actions = []
-    dsl_actions.extend(
-        re.findall(r"^\s*Выполнен DSL:\s*([A-Za-zА-Яа-я_]+)\b", log_text, flags=re.I | re.M)
-    )
-    dsl_actions.extend(
-        re.findall(r"^\s*DSL Result:\s*(?:ok|fail)\s*\|\s*([A-Za-zА-Яа-я_]+)\s*:", log_text, flags=re.I | re.M)
+    analysis["dsl_actions_executed"] = sorted(_build_action_set(re.findall(
+        r"^\s*Выполнен DSL:\s*([A-Za-zА-Яа-я_]+)\b",
+        log_text,
+        flags=re.I | re.M
+    ) + re.findall(
+        r"^\s*DSL Result:\s*(?:ok|fail)\s*\|\s*([A-Za-zА-Яа-я_]+)\s*:",
+        log_text,
+        flags=re.I | re.M
+    )))
+
+    # Для сценарных правил используем "рабочее" множество действий без системных строк.
+    non_system_text = "\n".join(non_system_lines)
+    dsl_actions = re.findall(
+        r"(RunQuery|GetMetadata|GetObjectFields|FindReferenceByName|CreateDocument|CreateReference|ShowInfo|CheckObjectExists|SelectObject|Write|SetField|FindReferenceByGUID|FindReferenceByURL|ForEach|SaveToStorage|LoadFromStorage)",
+        non_system_text,
+        re.I,
     )
     analysis["dsl_actions_found"] = sorted(_build_action_set(dsl_actions))
+
+    # Доп. эвристика 0 rows из структурированного run_query при успешном RunQuery
+    successful_zero_rows_runquery = re.search(
+        r"\"action\"\s*:\s*\"RunQuery\".{0,600}?\"success\"\s*:\s*true.{0,1000}?\"row_count\"\s*:\s*0",
+        non_system_text,
+        re.I | re.S,
+    )
+    if successful_zero_rows_runquery:
+        analysis["runquery_zero_rows"] = True
 
     # Резюме: проверка маркера и слов подтверждения
     if SUMMARY_MARKER in log_text:
@@ -416,6 +438,7 @@ def evaluate_scenario_rules(example: dict, success: bool, analysis: dict, usage_
     example_id = example.get("id", "")
     rule = _get_scenario_rule(example_id)
     actions = _build_action_set(analysis.get("dsl_actions_found", []))
+    executed_actions = _build_action_set(analysis.get("dsl_actions_executed", []))
     violations = []
     evidences = []
 
@@ -436,7 +459,7 @@ def evaluate_scenario_rules(example: dict, success: bool, analysis: dict, usage_
     elif required_all:
         evidences.append(f"Все обязательные действия(all) присутствуют: {', '.join(required_all)}")
 
-    violated_forbidden = [a for a in forbidden if a in actions]
+    violated_forbidden = [a for a in forbidden if a in executed_actions]
     if violated_forbidden:
         violations.append(f"Обнаружены запрещенные действия: {', '.join(violated_forbidden)}")
 
