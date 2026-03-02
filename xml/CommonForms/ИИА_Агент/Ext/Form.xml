@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <Form xmlns="http://v8.1c.ru/8.3/xcf/logform" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:dcscor="http://v8.1c.ru/8.1/data-composition-system/core" xmlns:dcssch="http://v8.1c.ru/8.1/data-composition-system/schema" xmlns:dcsset="http://v8.1c.ru/8.1/data-composition-system/settings" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:pal="http://v8.1c.ru/8.1/data/ui/colors/palette" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.21">
 	<WindowOpeningMode>DontBlock</WindowOpeningMode>
 	<Group>Vertical</Group>
@@ -244,10 +244,10 @@
 							<MaxWidth>40</MaxWidth>
 							<Height>12</Height>
 							<AutoMaxHeight>false</AutoMaxHeight>
-							<VerticalStretch>false</VerticalStretch>
 							<RowSelectionMode>Cell</RowSelectionMode>
 							<UseAlternationRowColorBWA>false</UseAlternationRowColorBWA>
 							<AutoInsertNewRow>true</AutoInsertNewRow>
+							<VerticalStretch>false</VerticalStretch>
 							<EnableStartDrag>true</EnableStartDrag>
 							<EnableDrag>true</EnableDrag>
 							<DataPath>ПланЗадач</DataPath>
@@ -341,8 +341,8 @@
 							<MaxWidth>40</MaxWidth>
 							<Height>8</Height>
 							<AutoMaxHeight>false</AutoMaxHeight>
-							<VerticalStretch>false</VerticalStretch>
 							<RowSelectionMode>Cell</RowSelectionMode>
+							<VerticalStretch>false</VerticalStretch>
 							<DataPath>ИзмененныеОбъекты</DataPath>
 							<CommandSet>
 								<ExcludedCommand>Add</ExcludedCommand>
@@ -369,6 +369,30 @@
 							<ContextMenu name="ИзмененныеОбъектыКонтекстноеМеню" id="172"/>
 							<AutoCommandBar name="ИзмененныеОбъектыКоманднаяПанель" id="173"/>
 							<ExtendedTooltip name="ИзмененныеОбъектыРасширеннаяПодсказка" id="174"/>
+							<SearchStringAddition name="ИзмененныеОбъектыСтрокаПоиска" id="196">
+								<AdditionSource>
+									<Item>ИзмененныеОбъекты</Item>
+									<Type>SearchStringRepresentation</Type>
+								</AdditionSource>
+								<ContextMenu name="ИзмененныеОбъектыСтрокаПоискаКонтекстноеМеню" id="197"/>
+								<ExtendedTooltip name="ИзмененныеОбъектыСтрокаПоискаРасширеннаяПодсказка" id="198"/>
+							</SearchStringAddition>
+							<ViewStatusAddition name="ИзмененныеОбъектыСостояниеПросмотра" id="199">
+								<AdditionSource>
+									<Item>ИзмененныеОбъекты</Item>
+									<Type>ViewStatusRepresentation</Type>
+								</AdditionSource>
+								<ContextMenu name="ИзмененныеОбъектыСостояниеПросмотраКонтекстноеМеню" id="200"/>
+								<ExtendedTooltip name="ИзмененныеОбъектыСостояниеПросмотраРасширеннаяПодсказка" id="201"/>
+							</ViewStatusAddition>
+							<SearchControlAddition name="ИзмененныеОбъектыУправлениеПоиском" id="202">
+								<AdditionSource>
+									<Item>ИзмененныеОбъекты</Item>
+									<Type>SearchControl</Type>
+								</AdditionSource>
+								<ContextMenu name="ИзмененныеОбъектыУправлениеПоискомКонтекстноеМеню" id="203"/>
+								<ExtendedTooltip name="ИзмененныеОбъектыУправлениеПоискомРасширеннаяПодсказка" id="204"/>
+							</SearchControlAddition>
 							<ChildItems>
 								<InputField name="ИзмененныеОбъектыСсылкаНаОбъект" id="175">
 									<DataPath>ИзмененныеОбъекты.СсылкаНаОбъект</DataPath>
