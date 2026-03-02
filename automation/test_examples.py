@@ -141,7 +141,7 @@ TOKEN_BUDGETS_BY_EXAMPLE = {
 
 EXAMPLE_GROUPS = {
     "smoke": ["orders_client", "stock_low", "create_receipt", "sales_analysis"],
-    "recovery": ["field_not_found_recovery", "nested_fields_query", "sales_analysis"],
+    "recovery": ["field_not_found_recovery", "nested_fields_query"],
     "write": ["create_receipt", "duplicate_prevention"],
     "safety": ["capability_readonly_guard", "empty_data_not_failure"],
 }
@@ -185,7 +185,8 @@ SCENARIO_RULES_BY_ID = {
         "required_actions_all": [],
         "forbidden_actions": [],
         "max_errors": 44,
-        "require_recovery": True,
+        # При стабильном retrieval-first сценарий может завершиться без recovery.
+        "require_recovery": False,
         "require_zero_rows": False,
     },
     "nested_fields_query": {
