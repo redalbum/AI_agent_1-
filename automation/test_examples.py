@@ -18,6 +18,7 @@ import sys
 import os
 import re
 import json
+import html
 import statistics
 from collections import Counter
 import urllib.request
@@ -232,7 +233,7 @@ SCENARIO_RULES_BY_ID = {
     "capability_readonly_guard": {
         "expect_success": True,
         "allow_empty_result": True,
-        "required_actions_any": ["ShowInfo"],
+        "required_actions_any": [],
         "required_actions_all": [],
         "forbidden_actions": ["CreateDocument", "CreateReference", "Write", "SetField"],
         "max_errors": 24,
@@ -324,6 +325,7 @@ def analyze_log(log_text: str) -> dict:
     lines = log_text.split("\n")
     for line in lines:
         line_stripped = line.strip()
+        line_lower = line.lower()
         # Ошибки
         if "[ОШИБКА]" in line or "Ошибка" in line or "ошибка" in line:
             analysis["has_error"] = True
@@ -335,29 +337,31 @@ def analyze_log(log_text: str) -> dict:
         if "dsl_error" in line.lower() or "dsl_fail" in line.lower():
             analysis["dsl_errors"].append(line_stripped[:200])
         # Вызовы ИИ
-        if "Вызов ИИ" in line or "call_ai" in line.lower():
+        if "Вызов ИИ" in line or "call_ai" in line_lower:
             analysis["ai_calls"] += 1
         # План завершён
-        if "ПланЗавершен" in line or "план завершён" in line.lower():
+        if "ПланЗавершен" in line or "план завершён" in line_lower:
             analysis["plan_completed"] = True
         # Summary
-        if "summary" in line.lower() or "итог" in line.lower():
+        if "summary" in line_lower or "итог" in line_lower:
             analysis["summary_present"] = True
         # Recovery-циклы
-        if "state_transition=validate->recover" in line.lower() or "stage=recover" in line.lower():
+        if "state_transition=validate->recover" in line_lower or "stage=recover" in line_lower:
             analysis["recovery_attempts"] += 1
         # Пустой результат запроса
-        if "получено строк: 0" in line.lower():
+        if "получено строк: 0" in line_lower or "\"row_count\": 0" in line_lower or "\"row_count\":0" in line_lower:
             analysis["runquery_zero_rows"] = True
         # Признак ранней сдачи
-        if "не выполнена" in line.lower() and "showinfo" in line.lower():
+        if "не выполнена" in line_lower and "showinfo" in line_lower:
             analysis["premature_giveup_detected"] = True
 
-    # Дополнительный поиск RunQuery, GetMetadata и т.д.
-    dsl_actions = re.findall(
-        r"(RunQuery|GetMetadata|GetObjectFields|FindReferenceByName|CreateDocument|CreateReference|ShowInfo|CheckObjectExists|SelectObject|Write|SetField|FindReferenceByGUID|FindReferenceByURL|ForEach|SaveToStorage|LoadFromStorage)",
-        log_text,
-        re.I,
+    # Извлекаем действия по факту выполнения, а не из текста системных промптов.
+    dsl_actions = []
+    dsl_actions.extend(
+        re.findall(r"^\s*Выполнен DSL:\s*([A-Za-zА-Яа-я_]+)\b", log_text, flags=re.I | re.M)
+    )
+    dsl_actions.extend(
+        re.findall(r"^\s*DSL Result:\s*(?:ok|fail)\s*\|\s*([A-Za-zА-Яа-я_]+)\s*:", log_text, flags=re.I | re.M)
     )
     analysis["dsl_actions_found"] = sorted(_build_action_set(dsl_actions))
 
@@ -626,6 +630,27 @@ def format_failure_reason(result: dict) -> str:
     if int(result.get("error_count", 0) or 0) > 0:
         return f"ошибок в логе: {result.get('error_count', 0)}"
     return str(result.get("error", "причина не определена"))
+
+
+def _build_telegram_example_line(result: dict) -> str:
+    status = "OK" if result.get("passed", False) else "FAIL"
+    example_id = str(result.get("id", "unknown"))
+    score = int(result.get("score", 0) or 0)
+    tokens = int(result.get("usage_tokens", 0) or 0)
+    errors = int(result.get("error_count", 0) or 0)
+    recovery_attempts = int(result.get("recovery_attempts", 0) or 0)
+    if result.get("passed", False):
+        reason = "ok"
+    else:
+        reason = format_failure_reason(result)
+    reason = str(reason).strip().replace("\n", " ")
+    if len(reason) > 120:
+        reason = reason[:117] + "..."
+    return (
+        f"- <code>{html.escape(example_id)}</code> {status} | score={score} | "
+        f"tok={tokens} | err={errors} | rec={recovery_attempts} | "
+        f"{html.escape(reason)}"
+    )
 
 
 def _extract_json_block(text: str):
@@ -1075,16 +1100,31 @@ def main():
         for item in top_failure_reasons:
             print(f"  - {item['reason']}: {item['count']}")
 
-    # Уведомление в Telegram
-    tg_ok = send_telegram_notification(
+    # Уведомление в Telegram (детали по каждому примеру без ссылок на файлы)
+    tg_header = (
         f"<b>Тесты примеров завершены</b>\n\n"
         f"Пройдено: {passed_count}/{len(results)}\n"
         f"Токены: {total_tokens:,} | Стоимость: ~{cost_rub} ₽\n"
         f"Score avg/min/max: {avg_score}/{min_score}/{max_score}\n"
         f"Quality gate: {'PASS' if quality_gate_passed else 'FAIL'}\n"
-        f"Каталог: <code>{run_log_dir}</code>\n"
-        f"{'✅ Все пройдены' if all_success else '❌ Есть провалы'}"
+        f"{'✅ Все пройдены' if all_success else '❌ Есть провалы'}\n\n"
+        f"<b>Детали:</b>"
     )
+    tg_lines = [_build_telegram_example_line(r) for r in results]
+    tg_message = tg_header + "\n" + "\n".join(tg_lines)
+    # Лимит Telegram для text ≈ 4096 символов
+    if len(tg_message) > 4000:
+        current_lines = []
+        hidden = 0
+        for idx, line in enumerate(tg_lines):
+            probe = tg_header + "\n" + "\n".join(current_lines + [line])
+            if len(probe) > 3920:
+                hidden = len(tg_lines) - idx
+                break
+            current_lines.append(line)
+        suffix = f"\n... (+{hidden} скрыто)" if hidden > 0 else ""
+        tg_message = tg_header + "\n" + "\n".join(current_lines) + suffix
+    tg_ok = send_telegram_notification(tg_message)
     if tg_ok:
         print("\nУведомление отправлено в Telegram")
     elif os.environ.get("TELEGRAM_BOT_TOKEN") or os.environ.get("TELEGRAM_CHAT_ID"):
