@@ -30,7 +30,7 @@
 		VerificationUri = Результат.verification_uri_complete;
 		AuthInterval = Результат.interval;
 		// Дата окончания = Текущая + expires_in
-		AuthExpiresAt = ТекущаяДатаСеанса() + Результат.expires_in; 
+		AuthExpiresAt = ТекущаяДата() + Результат.expires_in; 
 		СтатусАвторизации = "Pending";
 		
 		ОткрытьСсылкуВБраузере(VerificationUri);
@@ -97,7 +97,7 @@
 		Возврат;
 	КонецЕсли;
 	
-	Если ТекущаяДатаСеанса() > AuthExpiresAt Тогда
+	Если ТекущаяДата() > AuthExpiresAt Тогда
 		СтатусАвторизации = "Expired";
 		СтрокаСтатуса = "Время авторизации истекло. Попробуйте снова.";
 		Возврат;
