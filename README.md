@@ -55,11 +55,12 @@ graph TD
 
 - Смотреть видео на Rutube: [rutube.ru/video/70b6925431794a787177936b374d868d](https://rutube.ru/video/70b6925431794a787177936b374d868d/)
 
-**Картинка подсистемы (Paint edition):**
+**Скриншоты:**
 
-![Подсистема ИИ‑Агент (Paint edition)](docs/articles/product_first_publication/media/agent_subsystem_paint.png)
+![Скриншот: форма агента](docs/articles/product_first_publication/media/screenshot_agent_ui.png)
 
-Подробнее: статья в репозитории — [`docs/articles/product_first_publication/article.md`](docs/articles/product_first_publication/article.md)
+![Скриншот: RAG/поиск по метаданным](docs/articles/product_first_publication/media/screenshot_rag_context.png)
+
 
 ---
 
