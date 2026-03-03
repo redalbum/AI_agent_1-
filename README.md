@@ -47,6 +47,22 @@ graph TD
 
 ---
 
+## 🎬 Демо
+
+**Простой запрос:** *«Покажи топ контрагентов по суммам приходных накладных»*.
+
+![Демо: топ контрагентов по суммам приходных накладных](docs/articles/product_first_publication/media/demo_top_contractors_incoming_invoices.gif)
+
+- Смотреть видео на Rutube: [rutube.ru/video/70b6925431794a787177936b374d868d](https://rutube.ru/video/70b6925431794a787177936b374d868d/)
+
+**Картинка подсистемы (Paint edition):**
+
+![Подсистема ИИ‑Агент (Paint edition)](docs/articles/product_first_publication/media/agent_subsystem_paint.png)
+
+Подробнее: статья в репозитории — [`docs/articles/product_first_publication/article.md`](docs/articles/product_first_publication/article.md)
+
+---
+
 ## 🛠 Ключевые возможности
 
 *   **🤖 Автопилот:** Проактивное исследование структуры объектов и получение реквизитов.
