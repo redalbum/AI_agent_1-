@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <Form xmlns="http://v8.1c.ru/8.3/xcf/logform" xmlns:app="http://v8.1c.ru/8.2/managed-application/core" xmlns:cfg="http://v8.1c.ru/8.1/data/enterprise/current-config" xmlns:dcscor="http://v8.1c.ru/8.1/data-composition-system/core" xmlns:dcssch="http://v8.1c.ru/8.1/data-composition-system/schema" xmlns:dcsset="http://v8.1c.ru/8.1/data-composition-system/settings" xmlns:ent="http://v8.1c.ru/8.1/data/enterprise" xmlns:lf="http://v8.1c.ru/8.2/managed-application/logform" xmlns:pal="http://v8.1c.ru/8.1/data/ui/colors/palette" xmlns:style="http://v8.1c.ru/8.1/data/ui/style" xmlns:sys="http://v8.1c.ru/8.1/data/ui/fonts/system" xmlns:v8="http://v8.1c.ru/8.1/data/core" xmlns:v8ui="http://v8.1c.ru/8.1/data/ui" xmlns:web="http://v8.1c.ru/8.1/data/ui/colors/web" xmlns:win="http://v8.1c.ru/8.1/data/ui/colors/windows" xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="2.21">
 	<WindowOpeningMode>DontBlock</WindowOpeningMode>
 	<Group>Vertical</Group>
@@ -22,6 +22,7 @@
 			<Group>Vertical</Group>
 			<Representation>None</Representation>
 			<ShowTitle>false</ShowTitle>
+			<HorizontalStretch>true</HorizontalStretch>
 			<ExtendedTooltip name="ГруппаОсновнаяРасширеннаяПодсказка" id="11"/>
 			<ChildItems>
 				<LabelDecoration name="ДекорацияОписание" id="30">
@@ -35,6 +36,8 @@
 							<v8:content>Декорация описание</v8:content>
 						</v8:item>
 					</Title>
+					<TitleHeight>3</TitleHeight>
+					<HorizontalStretch>true</HorizontalStretch>
 					<ContextMenu name="ДекорацияОписаниеКонтекстноеМеню" id="32"/>
 					<ExtendedTooltip name="ДекорацияОписаниеРасширеннаяПодсказка" id="31"/>
 				</LabelDecoration>
@@ -46,6 +49,7 @@
 						</v8:item>
 					</Title>
 					<Hyperlink>true</Hyperlink>
+					<HorizontalStretch>true</HorizontalStretch>
 					<ContextMenu name="ДекорацияСсылкаGitsellКонтекстноеМеню" id="35"/>
 					<ExtendedTooltip name="ДекорацияСсылкаGitsellРасширеннаяПодсказка" id="34"/>
 					<Events>
@@ -56,6 +60,10 @@
 					<DataPath>СтрокаСтатуса</DataPath>
 					<TitleLocation>None</TitleLocation>
 					<Font ref="style:LargeTextFont" kind="StyleItem"/>
+					<AutoMaxWidth>false</AutoMaxWidth>
+					<Height>4</Height>
+					<AutoMaxHeight>false</AutoMaxHeight>
+					<HorizontalStretch>true</HorizontalStretch>
 					<ContextMenu name="СтрокаСтатусаКонтекстноеМеню" id="13"/>
 					<ExtendedTooltip name="СтрокаСтатусаРасширеннаяПодсказка" id="14"/>
 				</LabelField>
@@ -68,6 +76,7 @@
 						</v8:item>
 					</Title>
 					<Font ref="style:ExtraLargeTextFont" kind="StyleItem"/>
+					<HorizontalStretch>true</HorizontalStretch>
 					<ContextMenu name="UserCodeКонтекстноеМеню" id="16"/>
 					<ExtendedTooltip name="UserCodeРасширеннаяПодсказка" id="17"/>
 				</LabelField>
@@ -80,6 +89,9 @@
 						</v8:item>
 					</Title>
 					<Hiperlink>true</Hiperlink>
+					<Height>3</Height>
+					<AutoMaxHeight>false</AutoMaxHeight>
+					<HorizontalStretch>true</HorizontalStretch>
 					<ContextMenu name="VerificationUriКонтекстноеМеню" id="19"/>
 					<ExtendedTooltip name="VerificationUriРасширеннаяПодсказка" id="20"/>
 					<Events>
@@ -91,6 +103,7 @@
 					<TitleLocation>None</TitleLocation>
 					<TextColor>style:SpecialTextColor</TextColor>
 					<Font ref="style:LargeTextFont" kind="StyleItem"/>
+					<HorizontalStretch>true</HorizontalStretch>
 					<ContextMenu name="EmailПользователяКонтекстноеМеню" id="22"/>
 					<ExtendedTooltip name="EmailПользователяРасширеннаяПодсказка" id="23"/>
 				</LabelField>
