@@ -1,4 +1,4 @@
-﻿// Серверная интеграция с Gitsell
+// Серверная интеграция с Gitsell
 
 #Область Integration_Gitsell
 
@@ -184,7 +184,7 @@
 	
 	Запись.Provider_ApiKey = Токен;
 	Запись.Provider_BaseUrl = "https://gitsell.ru/api/v1"; // Стандартный URL
-	Запись.Модель = "auto";
+	Запись.Модель = "deepseek/deepseek-chat";
 	
 	Если ЗначениеЗаполнено(Email) Тогда
 		Запись.email = Email;
