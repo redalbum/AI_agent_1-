@@ -218,6 +218,7 @@
 	Заголовки.Вставить("Content-Type", "application/json");
 	Заголовки.Вставить("Accept", "application/json");
 	Заголовки.Вставить("Authorization", "Bearer " + Токен);
+	Заголовки.Вставить("X-Gitsell-Repo", "msrv-tech/AI_agent");
 	Если ПараметрыИИ.Свойство("trace_id") И НЕ ПустаяСтрока(Строка(ПараметрыИИ.trace_id)) Тогда
 		Заголовки.Вставить("X-Trace-Id", Строка(ПараметрыИИ.trace_id));
 	КонецЕсли;

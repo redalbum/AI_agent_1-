@@ -51,6 +51,11 @@ def main():
         help="Выгрузить расширение в bin/ИИ_Агент.cfe",
     )
     parser.add_argument(
+        "--output",
+        default=None,
+        help="Имя выходного .cfe в bin/ (например: AI_Agent.cfe)",
+    )
+    parser.add_argument(
         "--skip-db-update",
         action="store_true",
         help="Не обновлять конфигурацию БД",
@@ -66,7 +71,8 @@ def main():
     project_root = os.path.dirname(_script_dir)
     log_dir = os.path.join(_script_dir, "logs")
     xml_path = os.path.join(project_root, "xml")
-    cfe_path = os.path.join(project_root, "bin", f"{EXTENSION_NAME}.cfe")
+    cfe_name = args.output if args.output else f"{EXTENSION_NAME}.cfe"
+    cfe_path = os.path.join(project_root, "bin", cfe_name)
 
     connection_string = get_connection_string()
     os.environ["1C_CONNECTION_STRING"] = connection_string
