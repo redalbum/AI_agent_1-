@@ -54,6 +54,8 @@ graph TD
 ![Демо: топ контрагентов по суммам приходных накладных](docs/articles/product_first_publication/media/demo_top_contractors_incoming_invoices.gif)
 
 - Смотреть видео на Rutube: [rutube.ru/video/70b6925431794a787177936b374d868d](https://rutube.ru/video/70b6925431794a787177936b374d868d/)
+- Демо-база: [app498780.1capp.net/1SUpravleniye-torgovley-II-agent](https://app498780.1capp.net/1SUpravleniye-torgovley-II-agent/)
+  - Доступ: логин **Администратор**, пароль **123456**
 
 **Скриншоты:**
 
