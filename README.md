@@ -115,4 +115,13 @@ graph TD
 
 ---
 
+## 📰 Статьи
+
+[![Infostart](https://infostart.ru/bitrix/templates/sandbox_empty/assets/tpl/abo/img/logo.svg)](https://infostart.ru/1c/articles/2631305/)
+
+- [**Хабр:** ИИ‑агент внутри 1С](https://habr.com/ru/articles/1006230/)
+- [**Infostart:** 1C AI Agent — продукт, который не «поговорить», а «сделать»](https://infostart.ru/1c/articles/2631305/)
+
+---
+
 *Разработано с ❤️ для сообщества 1С.*
