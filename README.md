@@ -73,7 +73,7 @@ graph TD
 *   **🔍 Умный RAG-поиск:** Поиск объектов конфигурации по смыслу, а не только по названию.
 *   **⚡ Оптимизация контекста:** Технология *Context Saver* позволяет работать даже в огромных конфигурациях (ERP, УТ 11, КА).
 *   **🔧 Умная обработка ошибок:** Автоматическое исправление сценариев и динамическая подстройка параметров модели.
-*   **🔌 Гибкость:** Поддержка любых OpenAI-совместимых провайдеров; [Gitsell AI Proxy](https://gitsell.ru/ai-proxy) — из коробки.
+*   **🔌 Гибкость:** Поддержка любых OpenAI-совместимых провайдеров; [Gitsell AI Proxy](https://gitsell.ru/ai-proxy) и [OpenRouter](https://openrouter.ai/) — из коробки.
 
 ---
 
@@ -87,6 +87,7 @@ graph TD
 | 🛡 [**Безопасность**](docs/SECURITY.md) | Как настроить ограничения и защитить базу. |
 | 🔎 [**RAG Поиск**](docs/RAG.md) | Подробности работы семантического поиска по метаданным. |
 | 🧪 [**Тестирование**](docs/TESTING.md) | Инструменты для проверки качества работы агента. |
+| 🌐 [**OpenRouter**](docs/OPENROUTER.md) | Настройка OpenRouter — доступ к 300+ моделям из России. |
 
 **Удобное скачивание, техподдержка, подписка на обновления:** [gitsell.ru/msrv-tech/AI_agent](https://gitsell.ru/msrv-tech/AI_agent)
 
@@ -95,9 +96,44 @@ graph TD
 ## 🚀 Быстрый старт
 
 1.  **Установка:** Загрузите расширение в вашу базу 1С.
-2.  **Настройка:** Введите API-ключ вашего провайдера (например, [Gitsell](https://gitsell.ru)).
+2.  **Настройка:** Введите API-ключ вашего провайдера (например, [Gitsell](https://gitsell.ru) или [OpenRouter](https://openrouter.ai)).
 3.  **Индексация:** Запустите первичный сбор метаданных для обучения RAG-поиска.
 4.  **Готово!** Откройте форму агента и задайте свой первый вопрос.
+
+### 🌐 Настройка OpenRouter
+
+[OpenRouter](https://openrouter.ai/) предоставляет доступ к 300+ LLM-моделям (DeepSeek, Gemini, Claude и др.) через единый API, доступный из России.
+
+1. Получите API-ключ на [openrouter.ai/keys](https://openrouter.ai/keys).
+2. В настройках агента укажите:
+   - **Provider Base URL:** `https://openrouter.ai/api/v1`
+   - **API Key:** ваш ключ
+   - **Модель:** `deepseek/deepseek-chat` (или другая из [списка](https://openrouter.ai/models))
+
+Подробнее: [docs/OPENROUTER.md](docs/OPENROUTER.md)
+
+### 🐳 Запуск Python-автоматизации через Docker
+
+```bash
+cp .env.example .env
+# Отредактируйте .env: укажите PROVIDER_BASE_URL, PROVIDER_API_KEY и другие параметры
+docker compose up --build
+```
+
+### 🔧 Переменные окружения
+
+Скопируйте `.env.example` в `.env` и заполните нужные значения. Ключевые переменные:
+
+| Переменная | Описание |
+| :--- | :--- |
+| `PROVIDER_BASE_URL` | URL провайдера (Gitsell, OpenRouter, OpenAI, ...) |
+| `PROVIDER_API_KEY` | API-ключ провайдера |
+| `PROVIDER_MODEL` | Название модели |
+| `OPENROUTER_REFERER` | (Опционально) URL вашего приложения для OpenRouter |
+| `OPENROUTER_TITLE` | (Опционально) Название приложения для OpenRouter |
+| `TELEGRAM_BOT_TOKEN` | Токен Telegram-бота для уведомлений |
+| `TELEGRAM_CHAT_ID` | ID чата Telegram |
+| `SCORE_LLM_API_URL` | URL LLM для scoring в автотестах |
 
 ---
 
