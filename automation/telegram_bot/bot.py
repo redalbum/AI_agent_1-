@@ -129,7 +129,7 @@ async def _ensure_connection() -> bool:
     if _connector is not None and _connector.is_connected:
         return True
     if not ONEC_CONNECTION_STRING:
-        logger.warning("ONEC_CONNECTION_STRING не задана.")
+        logger.warning("ONEC_BASE_PATH (или ONEC_CONNECTION_STRING) не задан.")
         return False
     _connector = OneCConnector(ONEC_CONNECTION_STRING, ONEC_USER, ONEC_PASSWORD)
     result = await _connector.connect()
@@ -187,7 +187,7 @@ async def cmd_start(message: Message) -> None:
         await message.answer(
             "🤖 <b>Бизнес-ассистент 1С</b>\n\n"
             "⚠️ Не удалось подключиться к базе 1С.\n"
-            "Проверьте настройку <code>ONEC_CONNECTION_STRING</code>.\n\n"
+            "Проверьте настройку <code>ONEC_BASE_PATH</code> в файле .env.\n\n"
             "Вы можете попробовать позже или использовать доступные функции.",
             reply_markup=_main_menu_kb(),
             parse_mode="HTML",
@@ -380,7 +380,7 @@ async def main() -> None:
         _llm_client = LLMClient(LLM_BASE_URL, LLM_API_KEY, LLM_MODEL)
         logger.info("LLM-клиент инициализирован: %s", LLM_MODEL)
     else:
-        logger.warning("PROVIDER_API_KEY не задан — LLM-функции недоступны.")
+        logger.warning("OPENROUTER_API_KEY не задан — LLM-функции недоступны.")
 
     # Подключаемся к 1С
     connected = await _ensure_connection()
