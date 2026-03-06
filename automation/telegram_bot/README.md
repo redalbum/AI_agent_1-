@@ -53,7 +53,7 @@ pip install -r requirements-com.txt  # для COM на Windows
 
 ### 2. Настройте .env
 
-Скопируйте `.env.example` в `.env` в корне проекта и заполните:
+Скопируйте `.env.example` в `.env` в каталоге `automation/telegram_bot/` и заполните:
 
 ```ini
 # Токен бота от @BotFather
@@ -62,19 +62,19 @@ TELEGRAM_BOT_TOKEN=1234567890:AABBccDDeeFFggHHiiJJkkLL
 # Список разрешённых Telegram user_id (пусто = доступ для всех)
 TELEGRAM_ALLOWED_USERS=123456789
 
-# Строка подключения к 1С
-ONEC_CONNECTION_STRING=File="C:\Bases\Retail";
-ONEC_USER=Администратор
+# Путь к папке с базой 1С
+ONEC_BASE_PATH=C:\Bases\Retail
+ONEC_USER=
 ONEC_PASSWORD=
 
-# LLM провайдер (OpenRouter)
-PROVIDER_BASE_URL=https://openrouter.ai/api/v1
-PROVIDER_API_KEY=sk-or-...
-PROVIDER_MODEL=openai/gpt-4o-mini
+# API-ключ OpenRouter (openrouter.ai)
+OPENROUTER_API_KEY=sk-or-v1-...
 
-# Кеш метаданных
-METADATA_CACHE_FILE=metadata_cache.json
-METADATA_CACHE_TTL_HOURS=24
+# Модель ИИ
+OPENROUTER_MODEL=anthropic/claude-sonnet-4
+
+# Кеш метаданных (часов)
+METADATA_CACHE_HOURS=24
 ```
 
 ### 3. Получите токен бота
@@ -166,7 +166,7 @@ python bot.py
 ## Кеширование метаданных
 
 - Кеш хранится в файле `metadata_cache.json` (путь настраивается через `METADATA_CACHE_FILE`)
-- Время жизни — `METADATA_CACHE_TTL_HOURS` часов (по умолчанию 24)
+- Время жизни — `METADATA_CACHE_HOURS` часов (по умолчанию 24)
 - Для принудительного обновления: `/scan` или ⚙️ Настройки → Пересканировать
 
 ## Ограничение доступа

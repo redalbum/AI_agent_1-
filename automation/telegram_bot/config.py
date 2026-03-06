@@ -27,21 +27,34 @@ if _allowed_raw.strip():
                 )
 
 # 1C Connection
+# Поддерживается новое имя ONEC_BASE_PATH (путь к папке базы)
+# и старое ONEC_CONNECTION_STRING для обратной совместимости.
+ONEC_BASE_PATH: str = os.getenv("ONEC_BASE_PATH", "")
 ONEC_CONNECTION_STRING: str = os.getenv(
     "ONEC_CONNECTION_STRING",
-    os.getenv("1C_CONNECTION_STRING", ""),
+    os.getenv(
+        "1C_CONNECTION_STRING",
+        f'File="{ONEC_BASE_PATH}";' if ONEC_BASE_PATH else "",
+    ),
 )
-ONEC_USER: str = os.getenv("ONEC_USER", "Администратор")
+ONEC_USER: str = os.getenv("ONEC_USER", "")
 ONEC_PASSWORD: str = os.getenv("ONEC_PASSWORD", "")
 
-# LLM (OpenRouter / Gitsell / any OpenAI-compatible)
+# LLM (OpenRouter / any OpenAI-compatible)
+# Поддерживаются новые имена OPENROUTER_API_KEY / OPENROUTER_MODEL
+# и старые PROVIDER_API_KEY / PROVIDER_MODEL для обратной совместимости.
 LLM_BASE_URL: str = os.getenv("PROVIDER_BASE_URL", "https://openrouter.ai/api/v1")
-LLM_API_KEY: str = os.getenv("PROVIDER_API_KEY", os.getenv("SCORE_LLM_API_KEY", ""))
+LLM_API_KEY: str = os.getenv(
+    "OPENROUTER_API_KEY",
+    os.getenv("PROVIDER_API_KEY", os.getenv("SCORE_LLM_API_KEY", "")),
+)
 LLM_MODEL: str = os.getenv(
-    "PROVIDER_MODEL",
-    os.getenv("SCORE_LLM_MODEL", "openai/gpt-4o-mini"),
+    "OPENROUTER_MODEL",
+    os.getenv("PROVIDER_MODEL", os.getenv("SCORE_LLM_MODEL", "anthropic/claude-sonnet-4")),
 )
 
 # Metadata cache
 METADATA_CACHE_FILE: str = os.getenv("METADATA_CACHE_FILE", "metadata_cache.json")
-METADATA_CACHE_TTL_HOURS: int = int(os.getenv("METADATA_CACHE_TTL_HOURS", "24"))
+METADATA_CACHE_TTL_HOURS: int = int(
+    os.getenv("METADATA_CACHE_HOURS", os.getenv("METADATA_CACHE_TTL_HOURS", "24"))
+)
