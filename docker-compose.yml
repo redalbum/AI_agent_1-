@@ -1,0 +1,8 @@
+version: '3.8'
+services:
+  automation:
+    build: ./automation
+    env_file: .env
+    volumes:
+      - ./automation:/app
+    # restart: unless-stopped
