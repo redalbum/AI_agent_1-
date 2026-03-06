@@ -86,8 +86,8 @@ echo.
 echo    1. Откройте "⚙️ Настройки бота" на рабочем столе
 echo    2. Заполните TELEGRAM_BOT_TOKEN (от @BotFather)
 echo    3. Заполните TELEGRAM_ALLOWED_USERS (от @userinfobot)
-echo    4. Заполните путь к базе 1С
-echo    5. Заполните PROVIDER_API_KEY (от openrouter.ai)
+echo    4. Заполните ONEC_BASE_PATH — путь к папке с базой 1С
+echo    5. Заполните OPENROUTER_API_KEY (от openrouter.ai/keys)
 echo    6. Сохраните файл и закройте
 echo    7. Запустите "🚀 Запустить бота" на рабочем столе
 echo.
