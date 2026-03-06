@@ -37,6 +37,7 @@ from aiogram.types import (
 from .config import (
     TELEGRAM_BOT_TOKEN,
     TELEGRAM_ALLOWED_USERS,
+    ONEC_BASE_PATH,
     ONEC_CONNECTION_STRING,
     ONEC_USER,
     ONEC_PASSWORD,
@@ -371,7 +372,8 @@ async def main() -> None:
 
     if not TELEGRAM_BOT_TOKEN:
         logger.critical(
-            "TELEGRAM_BOT_TOKEN не задан. Добавьте его в .env и перезапустите."
+            "TELEGRAM_BOT_TOKEN не задан. "
+            "Получите токен у @BotFather в Telegram, добавьте в .env и перезапустите."
         )
         sys.exit(1)
 
@@ -380,7 +382,16 @@ async def main() -> None:
         _llm_client = LLMClient(LLM_BASE_URL, LLM_API_KEY, LLM_MODEL)
         logger.info("LLM-клиент инициализирован: %s", LLM_MODEL)
     else:
-        logger.warning("PROVIDER_API_KEY не задан — LLM-функции недоступны.")
+        logger.warning(
+            "OPENROUTER_API_KEY не задан — LLM-функции недоступны. "
+            "Получите ключ на openrouter.ai и добавьте в .env."
+        )
+
+    if not ONEC_CONNECTION_STRING:
+        logger.warning(
+            "ONEC_BASE_PATH не задан — подключение к 1С недоступно. "
+            "Укажите путь к папке базы 1С в .env (например: ONEC_BASE_PATH=C:\\Bases\\Retail)."
+        )
 
     # Подключаемся к 1С
     connected = await _ensure_connection()
