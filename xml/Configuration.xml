@@ -79,6 +79,7 @@
 			<CommonModule>ИИА_ВызовСервера</CommonModule>
 			<CommonModule>ИИА_Клиент</CommonModule>
 			<CommonModule>ИИА_Метаданные</CommonModule>
+			<CommonModule>ИИА_Анонимизация</CommonModule>
 			<CommonModule>ИИА_Провайдеры</CommonModule>
 			<CommonModule>ИИА_Промты</CommonModule>
 			<CommonModule>ИИА_Сервер</CommonModule>
