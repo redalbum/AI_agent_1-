@@ -1,3 +1,12 @@
-# Основные зависимости для automation-скриптов
+# Зависимости для Telegram-бота бизнес-ассистента 1С
+# Установка: pip install -r requirements.txt
+
+# Telegram Bot
+aiogram>=3.0
+aiohttp>=3.9
+
+# Environment & config
 python-dotenv>=1.0
-requests>=2.31
+
+# Windows COM (только для Windows, для работы с 1С)
+# pywin32>=306  # раскомментируйте на Windows
