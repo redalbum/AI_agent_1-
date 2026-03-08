@@ -26,18 +26,12 @@ if not exist ".env" (
     exit /b 1
 )
 
-REM Проверка заполненности .env
-findstr /C:"TELEGRAM_BOT_TOKEN=ваш_токен" .env >nul 2>&1
-if %errorLevel% equ 0 (
-    echo ❌ TELEGRAM_BOT_TOKEN не заполнен в .env!
+REM Проверка что токен заполнен (содержит двоеточие — признак валидного токена)
+findstr /R "^TELEGRAM_BOT_TOKEN=.*:.*" .env >nul 2>&1
+if %errorLevel% neq 0 (
+    echo ❌ TELEGRAM_BOT_TOKEN не заполнен или некорректен!
     echo    Откройте .env и укажите токен от @BotFather
-    pause
-    exit /b 1
-)
-findstr /R "^TELEGRAM_BOT_TOKEN=$" .env >nul 2>&1
-if %errorLevel% equ 0 (
-    echo ❌ TELEGRAM_BOT_TOKEN не заполнен в .env!
-    echo    Откройте .env и укажите токен от @BotFather
+    echo    Токен должен выглядеть как: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz
     pause
     exit /b 1
 )

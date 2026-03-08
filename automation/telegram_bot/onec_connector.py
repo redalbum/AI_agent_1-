@@ -27,15 +27,18 @@ try:
         safe_getattr,
     )
     _COM_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     _COM_AVAILABLE = False
-    logger.warning("Пакет com_1c не найден — COM-подключение к 1С недоступно.")
+    logger.warning(
+        "COM-подключение к 1С недоступно: %s\n"
+        "   Установите pywin32: pip install pywin32", e
+    )
 
 
 class OneCConnector:
     """Обёртка для синхронного COM-подключения к 1С, вызываемого из async-кода."""
 
-    def __init__(self, connection_string: str, user: str = "Администратор", password: str = "") -> None:
+    def __init__(self, connection_string: str, user: str = "", password: str = "") -> None:
         self.connection_string = connection_string
         self.user = user
         self.password = password
