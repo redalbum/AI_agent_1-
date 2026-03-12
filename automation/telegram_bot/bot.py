@@ -13,6 +13,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import re
 import sys
 from typing import Optional
 
@@ -374,6 +375,16 @@ async def main() -> None:
             "TELEGRAM_BOT_TOKEN не задан. Добавьте его в .env и перезапустите."
         )
         sys.exit(1)
+
+    # Проверяем путь к базе 1С
+    path_match = re.search(r'File="([^"]+)"', ONEC_CONNECTION_STRING)
+    if path_match:
+        onec_path = path_match.group(1)
+        if not os.path.isdir(onec_path):
+            logger.warning(
+                "⚠️ Папка базы 1С не найдена: %s\n"
+                "   Проверьте ONEC_BASE_PATH в .env", onec_path
+            )
 
     # Инициализируем LLM-клиент
     if LLM_API_KEY:
